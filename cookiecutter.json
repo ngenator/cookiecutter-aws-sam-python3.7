@@ -1,5 +1,5 @@
 {
-    "project_name": "AWS SAM Python 3.7",
+    "project_name": "AWS SAM Python 37",
     "project_slug": "{{ cookiecutter.project_name|lower|replace(' ', '-') }}",
     "project_module": "{{ cookiecutter.project_slug|replace('-', '_') }}",
     "project_short_description": ""

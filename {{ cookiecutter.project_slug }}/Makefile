@@ -1,50 +1,48 @@
-AWS_PROFILE ?= default
+export AWS_PROFILE ?= default
+export AWS_REGION ?= us-east-1
+
 STACK_NAME ?= {{ cookiecutter.project_slug }}
 S3_BUCKET_NAME ?= aws-sam-apps
 
-BUILD_DIR = build
+BUILD = ./build
+
+TEMPLATE = template.yaml
+PACKAGED = packaged.yaml
 
 .PHONY: clean
 clean:
-	@rm -rf $(BUILD_DIR)/*
-	@aws s3 rm \
-		--profile $(AWS_PROFILE) \
-		--recursive \
-		s3://$(S3_BUCKET_NAME)/$(STACK_NAME)/*
+	@rm -rf $(BUILD)
 
 .PHONY: build
-build: $(BUILD_DIR)/template.yaml
+build: $(BUILD)
 
-$(BUILD_DIR)/template.yaml: template.sam.yaml src/requirements.txt src/*.py
+$(BUILD)/$(TEMPLATE): $(TEMPLATE) src/*.py
 	@sam build \
-		--profile $(AWS_PROFILE) \
-		--build-dir $(BUILD_DIR)
+		--build-dir $(BUILD) \
+		--use-container \
+		--manifest requirements.txt
 
 .PHONY: local-invoke
 local-invoke: | build
 	@sam local invoke \
-		--profile $(AWS_PROFILE) \
-		--template $(BUILD_DIR)/template.yaml \
+		--template $(BUILD)/$(TEMPLATE) \
 		--event event.json
 
 .PHONY: package
 package: | build
 	@sam package \
-		--profile $(AWS_PROFILE) \
 		--s3-bucket s3://$(S3_BUCKET_NAME)/$(STACK_NAME)/ \
-		--template-file $(BUILD_DIR)/template.yaml \
-		--output-template-file $(BUILD_DIR)/template-packaged.yaml
+		--template-file $(BUILD)/$(TEMPLATE) \
+		--output-template-file $(BUILD)/$(PACKAGED)
 
 .PHONY: deploy
 deploy: | package
 	@sam deploy \
-		--profile $(AWS_PROFILE) \
 		--s3-bucket s3://$(S3_BUCKET_NAME)/$(STACK_NAME)/ \
-		--template-file $(BUILD_DIR)/template.yaml \
+		--template-file $(BUILD)/$(PACKAGED) \
 		--stack-name $(STACK_NAME)
 
 .PHONY: destroy
 destroy: | clean
 	@aws cloudformation delete-stack \
-		--profile $(AWS_PROFILE) \
 		--stack-name $(STACK_NAME)
